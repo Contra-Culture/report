@@ -30,7 +30,14 @@ const (
 func New(t string) (c *RContext) {
 	return &RContext{
 		depth:    0,
-		title:    fmt.Sprintf("root: %s", t),
+		title:    t,
+		children: []interface{}{},
+	}
+}
+func Newf(t string, injections ...interface{}) (c *RContext) {
+	return &RContext{
+		depth:    0,
+		title:    fmt.Sprintf(t, injections...),
 		children: []interface{}{},
 	}
 }
