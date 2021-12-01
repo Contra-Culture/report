@@ -37,7 +37,7 @@ var _ = Describe("report", func() {
 					It("adds warn record", func() {
 						r := New("test")
 						r.Warn("some warn")
-						Expect(r.String()).To(Equal("root: test\n\t\t[ warn ] some warn\n"))
+						Expect(r.String()).To(Equal("root: test\n\t\t[ warning ] some warn\n"))
 					})
 				})
 				Describe(".Info()", func() {
@@ -51,7 +51,7 @@ var _ = Describe("report", func() {
 					It("adds deprecation record", func() {
 						r := New("test")
 						r.Deprecation("some deprecation")
-						Expect(r.String()).To(Equal("root: test\n\t\t[ deprecation ] some deprecation\n"))
+						Expect(r.String()).To(Equal("root: test\n\t\t[ deprecated ] some deprecation\n"))
 					})
 				})
 			})

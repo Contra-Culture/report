@@ -22,16 +22,10 @@ const (
 	_ recordKind = iota
 	Error
 	Info
+	Debug
 	Warn
 	Deprecation
 )
-
-var kindToPrefixMapping = map[recordKind]string{
-	Error:       "\t[ error ] ",
-	Info:        "\t[ info ] ",
-	Warn:        "\t[ warn ] ",
-	Deprecation: "\t[ deprecation ] ",
-}
 
 func New(t string) (c *RContext) {
 	return &RContext{
@@ -57,10 +51,12 @@ func (c *RContext) String() string {
 				acc = append(acc, "\t[ error ] ")
 			case Info:
 				acc = append(acc, "\t[ info ] ")
+			case Debug:
+				acc = append(acc, "\t[ debug ] ")
 			case Warn:
-				acc = append(acc, "\t[ warn ] ")
+				acc = append(acc, "\t[ warning ] ")
 			case Deprecation:
-				acc = append(acc, "\t[ deprecation ] ")
+				acc = append(acc, "\t[ deprecated ] ")
 			default:
 				panic("wrong record kind")
 			}
@@ -104,10 +100,66 @@ func (c *RContext) Info(m string) {
 			message: m,
 		})
 }
+func (c *RContext) Debug(m string) {
+	c.children = append(
+		c.children,
+		&Record{
+			kind:    Debug,
+			message: m,
+		})
+}
 func (c *RContext) Context(t string) (child *RContext) {
 	child = &RContext{
 		depth: c.depth + 1,
 		title: t,
+	}
+	c.children = append(c.children, child)
+	return child
+}
+func (c *RContext) Errorf(t string, injections ...interface{}) {
+	c.children = append(
+		c.children,
+		&Record{
+			kind:    Error,
+			message: fmt.Sprintf(t, injections...),
+		})
+}
+func (c *RContext) Warnf(m string) {
+	c.children = append(
+		c.children,
+		&Record{
+			kind:    Warn,
+			message: m,
+		})
+}
+func (c *RContext) Deprecationf(t string, injections ...interface{}) {
+	c.children = append(
+		c.children,
+		&Record{
+			kind:    Deprecation,
+			message: fmt.Sprintf(t, injections...),
+		})
+}
+func (c *RContext) Infof(t string, injections ...interface{}) {
+	c.children = append(
+		c.children,
+		&Record{
+			kind:    Info,
+			message: fmt.Sprintf(t, injections...),
+		})
+}
+func (c *RContext) Debugf(t string, injections ...interface{}) {
+	c.children = append(
+		c.children,
+		&Record{
+			kind:    Debug,
+			message: fmt.Sprintf(t, injections...),
+		})
+}
+func (c *RContext) Contextf(t string, injections ...interface{}) (child *RContext) {
+	child = &RContext{
+		depth: c.depth + 1,
+		title: fmt.Sprintf(t, injections...),
 	}
 	c.children = append(c.children, child)
 	return child
