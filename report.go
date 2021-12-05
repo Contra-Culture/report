@@ -83,6 +83,9 @@ func (c *RContext) Error(m string) {
 			message: m,
 		})
 }
+func (c *RContext) Errorf(t string, injections ...interface{}) {
+	c.Error(fmt.Sprintf(t, injections...))
+}
 func (c *RContext) Warn(m string) {
 	c.children = append(
 		c.children,
@@ -90,6 +93,9 @@ func (c *RContext) Warn(m string) {
 			kind:    Warn,
 			message: m,
 		})
+}
+func (c *RContext) Warnf(t string, injections ...interface{}) {
+	c.Warn(fmt.Sprintf(t, injections...))
 }
 func (c *RContext) Deprecation(m string) {
 	c.children = append(
@@ -99,6 +105,9 @@ func (c *RContext) Deprecation(m string) {
 			message: m,
 		})
 }
+func (c *RContext) Deprecationf(t string, injections ...interface{}) {
+	c.Deprecation(fmt.Sprintf(t, injections...))
+}
 func (c *RContext) Info(m string) {
 	c.children = append(
 		c.children,
@@ -106,6 +115,9 @@ func (c *RContext) Info(m string) {
 			kind:    Info,
 			message: m,
 		})
+}
+func (c *RContext) Infof(t string, injections ...interface{}) {
+	c.Info(fmt.Sprintf(t, injections...))
 }
 func (c *RContext) Debug(m string) {
 	c.children = append(
@@ -115,6 +127,9 @@ func (c *RContext) Debug(m string) {
 			message: m,
 		})
 }
+func (c *RContext) Debugf(t string, injections ...interface{}) {
+	c.Debug(fmt.Sprintf(t, injections...))
+}
 func (c *RContext) Context(t string) (child *RContext) {
 	child = &RContext{
 		depth: c.depth + 1,
@@ -123,51 +138,6 @@ func (c *RContext) Context(t string) (child *RContext) {
 	c.children = append(c.children, child)
 	return child
 }
-func (c *RContext) Errorf(t string, injections ...interface{}) {
-	c.children = append(
-		c.children,
-		&Record{
-			kind:    Error,
-			message: fmt.Sprintf(t, injections...),
-		})
-}
-func (c *RContext) Warnf(m string) {
-	c.children = append(
-		c.children,
-		&Record{
-			kind:    Warn,
-			message: m,
-		})
-}
-func (c *RContext) Deprecationf(t string, injections ...interface{}) {
-	c.children = append(
-		c.children,
-		&Record{
-			kind:    Deprecation,
-			message: fmt.Sprintf(t, injections...),
-		})
-}
-func (c *RContext) Infof(t string, injections ...interface{}) {
-	c.children = append(
-		c.children,
-		&Record{
-			kind:    Info,
-			message: fmt.Sprintf(t, injections...),
-		})
-}
-func (c *RContext) Debugf(t string, injections ...interface{}) {
-	c.children = append(
-		c.children,
-		&Record{
-			kind:    Debug,
-			message: fmt.Sprintf(t, injections...),
-		})
-}
-func (c *RContext) Contextf(t string, injections ...interface{}) (child *RContext) {
-	child = &RContext{
-		depth: c.depth + 1,
-		title: fmt.Sprintf(t, injections...),
-	}
-	c.children = append(c.children, child)
-	return child
+func (c *RContext) Contextf(t string, injections ...interface{}) *RContext {
+	return c.Context(fmt.Sprintf(t, injections...))
 }
