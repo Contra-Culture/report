@@ -6,20 +6,28 @@ import (
 )
 
 type (
-	recordKind int
-	RContext   struct {
-		depth    int
-		children []interface{} // interface{} is *Context or *Record
-		title    string
+	Kind uint8
+	node struct {
+		kind     Kind
+		allowMap Kind
+		nodes    []*node
+		msg      string
 	}
-	Record struct {
-		kind    recordKind
-		message string
+	Node interface {
+		Message() string
+		Traverse(fn func([]int, Kind, string) error) error
+		Structure(string, ...interface{}) Node
+		Error(string, ...interface{}) Node
+		Info(string, ...interface{}) Node
+		Debug(string, ...interface{}) Node
+		Warn(string, ...interface{}) Node
+		Deprecation(string, ...interface{}) Node
+		Allow(...Kind)
 	}
 )
 
 const (
-	_ recordKind = iota
+	Structure Kind = 1 << iota
 	Error
 	Info
 	Debug
@@ -27,117 +35,153 @@ const (
 	Deprecation
 )
 
-func New(t string) (c *RContext) {
-	return &RContext{
-		depth:    0,
-		title:    t,
-		children: []interface{}{},
+const allKinds = Structure | Error | Info | Debug | Warn | Deprecation
+
+func New(m string, injs ...interface{}) Node {
+	if len(injs) > 0 {
+		m = fmt.Sprintf(m, injs...)
+	}
+	return &node{
+		kind:     Structure,
+		allowMap: allKinds,
+		nodes:    []*node{},
+		msg:      m,
 	}
 }
-func Newf(t string, injections ...interface{}) (c *RContext) {
-	return &RContext{
-		depth:    0,
-		title:    fmt.Sprintf(t, injections...),
-		children: []interface{}{},
-	}
+func (n *node) Traverse(fn func([]int, Kind, string) error) error {
+	return n.traverse([]int{}, fn)
 }
-func (c *RContext) String() string {
-	acc := []string{}
-	acc = append(acc, c.title)
-	acc = append(acc, "\n")
-	for _, rawChild := range c.children {
-		for i := 0; i <= c.depth; i++ {
-			acc = append(acc, "\t")
+func (n *node) traverse(path []int, fn func([]int, Kind, string) error) (err error) {
+	err = fn(path, n.kind, n.msg)
+	if err != nil {
+		return
+	}
+	for i, ch := range n.nodes {
+		err = ch.traverse(append(path, i), fn)
+		if err != nil {
+			return
 		}
-		switch child := rawChild.(type) {
-		case *RContext:
-			acc = append(acc, child.String())
-		case *Record:
-			switch child.kind {
-			case Error:
-				acc = append(acc, "\t[ error ] ")
-			case Info:
-				acc = append(acc, "\t[ info ] ")
-			case Debug:
-				acc = append(acc, "\t[ debug ] ")
-			case Warn:
-				acc = append(acc, "\t[ warning ] ")
-			case Deprecation:
-				acc = append(acc, "\t[ deprecated ] ")
-			default:
-				panic("wrong record kind")
+	}
+	return
+}
+func ToString(n Node) string {
+	var sb strings.Builder
+	n.Traverse(
+		func(path []int, k Kind, m string) (err error) {
+			for range path {
+				sb.WriteRune('\t')
 			}
-			acc = append(acc, child.message)
-			acc = append(acc, "\n")
-		default:
-			panic("wrong children type")
-		}
+			switch k {
+			case Structure:
+				sb.WriteString("| ")
+			case Error:
+				sb.WriteString("[ error ] ")
+			case Info:
+				sb.WriteString("[ info ] ")
+			case Debug:
+				sb.WriteString("[ debug ] ")
+			case Warn:
+				sb.WriteString("[ warning ] ")
+			case Deprecation:
+				sb.WriteString("[ deprecated ] ")
+			default:
+				panic(fmt.Sprintf("wrong node kind - %#v", k))
+			}
+			sb.WriteString(m)
+			sb.WriteRune('\n')
+			return
+		})
+	return sb.String()
+}
+func (n *node) Error(m string, injs ...interface{}) Node {
+	if len(injs) > 0 {
+		m = fmt.Sprintf(m, injs...)
 	}
-	return strings.Join(acc, "")
-}
-func (c *RContext) Error(m string) {
-	c.children = append(
-		c.children,
-		&Record{
-			kind:    Error,
-			message: m,
-		})
-}
-func (c *RContext) Errorf(t string, injections ...interface{}) {
-	c.Error(fmt.Sprintf(t, injections...))
-}
-func (c *RContext) Warn(m string) {
-	c.children = append(
-		c.children,
-		&Record{
-			kind:    Warn,
-			message: m,
-		})
-}
-func (c *RContext) Warnf(t string, injections ...interface{}) {
-	c.Warn(fmt.Sprintf(t, injections...))
-}
-func (c *RContext) Deprecation(m string) {
-	c.children = append(
-		c.children,
-		&Record{
-			kind:    Deprecation,
-			message: m,
-		})
-}
-func (c *RContext) Deprecationf(t string, injections ...interface{}) {
-	c.Deprecation(fmt.Sprintf(t, injections...))
-}
-func (c *RContext) Info(m string) {
-	c.children = append(
-		c.children,
-		&Record{
-			kind:    Info,
-			message: m,
-		})
-}
-func (c *RContext) Infof(t string, injections ...interface{}) {
-	c.Info(fmt.Sprintf(t, injections...))
-}
-func (c *RContext) Debug(m string) {
-	c.children = append(
-		c.children,
-		&Record{
-			kind:    Debug,
-			message: m,
-		})
-}
-func (c *RContext) Debugf(t string, injections ...interface{}) {
-	c.Debug(fmt.Sprintf(t, injections...))
-}
-func (c *RContext) Context(t string) (child *RContext) {
-	child = &RContext{
-		depth: c.depth + 1,
-		title: t,
+	child := &node{
+		kind:     Error,
+		allowMap: Error,
+		msg:      m,
 	}
-	c.children = append(c.children, child)
+	if (n.allowMap & Error) > 0 {
+		n.nodes = append(n.nodes, child)
+	}
 	return child
 }
-func (c *RContext) Contextf(t string, injections ...interface{}) *RContext {
-	return c.Context(fmt.Sprintf(t, injections...))
+func (n *node) Warn(m string, injs ...interface{}) Node {
+	if len(injs) > 0 {
+		m = fmt.Sprintf(m, injs...)
+	}
+	child := &node{
+		kind:     Warn,
+		allowMap: Warn,
+		msg:      m,
+	}
+	if (n.allowMap & Warn) > 0 {
+		n.nodes = append(n.nodes, child)
+	}
+	return child
+}
+func (n *node) Deprecation(m string, injs ...interface{}) Node {
+	if len(injs) > 0 {
+		m = fmt.Sprintf(m, injs...)
+	}
+	child := &node{
+		kind:     Deprecation,
+		allowMap: Deprecation,
+		msg:      m,
+	}
+	if (n.allowMap & Deprecation) > 0 {
+		n.nodes = append(n.nodes, child)
+	}
+	return child
+}
+func (n *node) Info(m string, injs ...interface{}) Node {
+	if len(injs) > 0 {
+		m = fmt.Sprintf(m, injs...)
+	}
+	child := &node{
+		kind:     Info,
+		allowMap: Info,
+		msg:      m,
+	}
+	if (n.allowMap & Info) > 0 {
+		n.nodes = append(n.nodes, child)
+	}
+	return child
+}
+func (n *node) Debug(m string, injs ...interface{}) Node {
+	if len(injs) > 0 {
+		m = fmt.Sprintf(m, injs...)
+	}
+	child := &node{
+		kind:     Debug,
+		allowMap: Debug,
+		msg:      m,
+	}
+	if (n.allowMap & Debug) > 0 {
+		n.nodes = append(n.nodes, child)
+	}
+	return child
+}
+func (n *node) Structure(m string, injs ...interface{}) Node {
+	if len(injs) > 0 {
+		m = fmt.Sprintf(m, injs...)
+	}
+	child := &node{
+		kind:     Structure,
+		allowMap: allKinds,
+		msg:      m,
+	}
+	if (n.allowMap & Structure) > 0 {
+		n.nodes = append(n.nodes, child)
+	}
+	return child
+}
+func (n *node) Allow(kinds ...Kind) {
+	for _, k := range kinds {
+		n.allowMap |= k
+	}
+}
+func (n *node) Message() string {
+	return ""
 }
