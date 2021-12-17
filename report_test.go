@@ -104,4 +104,54 @@ var _ = Describe("report", func() {
 			})
 		})
 	})
+	Describe("predicates", func() {
+		Describe(".HasErrors()", func() {
+			Context("when has errors", func() {
+				It("returns true", func() {
+					r := New("test")
+					r.Structure("nested").Error("some error")
+					Expect(r.HasErrors()).To(BeTrue())
+				})
+			})
+			Context("when has no errors", func() {
+				It("returns true", func() {
+					r := New("test")
+					r.Structure("nested").Info("some info")
+					Expect(r.HasErrors()).To(BeFalse())
+				})
+			})
+		})
+		Describe(".HasWarns()", func() {
+			Context("when has warns", func() {
+				It("returns true", func() {
+					r := New("test")
+					r.Structure("nested").Warn("some warn")
+					Expect(r.HasWarns()).To(BeTrue())
+				})
+			})
+			Context("when has no warns", func() {
+				It("returns true", func() {
+					r := New("test")
+					r.Structure("nested").Info("some info")
+					Expect(r.HasWarns()).To(BeFalse())
+				})
+			})
+		})
+		Describe(".HasDeprecations()", func() {
+			Context("when has deprecations", func() {
+				It("returns true", func() {
+					r := New("test")
+					r.Structure("nested").Deprecation("some deprecation")
+					Expect(r.HasDeprecations()).To(BeTrue())
+				})
+			})
+			Context("when has no deprecations", func() {
+				It("returns true", func() {
+					r := New("test")
+					r.Structure("nested").Info("some info")
+					Expect(r.HasDeprecations()).To(BeFalse())
+				})
+			})
+		})
+	})
 })

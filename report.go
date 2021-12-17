@@ -23,6 +23,9 @@ type (
 		Warn(string, ...interface{}) Node
 		Deprecation(string, ...interface{}) Node
 		Allow(...Kind)
+		HasErrors() bool
+		HasWarns() bool
+		HasDeprecations() bool
 	}
 )
 
@@ -63,35 +66,6 @@ func (n *node) traverse(path []int, fn func([]int, Kind, string) error) (err err
 		}
 	}
 	return
-}
-func ToString(n Node) string {
-	var sb strings.Builder
-	n.Traverse(
-		func(path []int, k Kind, m string) (err error) {
-			for range path {
-				sb.WriteRune('\t')
-			}
-			switch k {
-			case Structure:
-				sb.WriteString("| ")
-			case Error:
-				sb.WriteString("[ error ] ")
-			case Info:
-				sb.WriteString("[ info ] ")
-			case Debug:
-				sb.WriteString("[ debug ] ")
-			case Warn:
-				sb.WriteString("[ warning ] ")
-			case Deprecation:
-				sb.WriteString("[ deprecated ] ")
-			default:
-				panic(fmt.Sprintf("wrong node kind - %#v", k))
-			}
-			sb.WriteString(m)
-			sb.WriteRune('\n')
-			return
-		})
-	return sb.String()
 }
 func (n *node) Error(m string, injs ...interface{}) Node {
 	if len(injs) > 0 {
@@ -184,4 +158,69 @@ func (n *node) Allow(kinds ...Kind) {
 }
 func (n *node) Message() string {
 	return ""
+}
+func (n *node) HasErrors() (hasErrors bool) {
+	hasErrors = false
+	n.Traverse(
+		func(_ []int, k Kind, _ string) (err error) {
+			if k == Error {
+				hasErrors = true
+				return
+			}
+			return
+		})
+	return
+}
+func (n *node) HasWarns() (hasWarns bool) {
+	hasWarns = false
+	n.Traverse(
+		func(_ []int, k Kind, _ string) (err error) {
+			if k == Warn {
+				hasWarns = true
+				return
+			}
+			return
+		})
+	return
+}
+func (n *node) HasDeprecations() (hasDeprecations bool) {
+	hasDeprecations = false
+	n.Traverse(
+		func(_ []int, k Kind, _ string) (err error) {
+			if k == Deprecation {
+				hasDeprecations = true
+				return
+			}
+			return
+		})
+	return
+}
+func ToString(n Node) string {
+	var sb strings.Builder
+	n.Traverse(
+		func(path []int, k Kind, m string) (err error) {
+			for range path {
+				sb.WriteRune('\t')
+			}
+			switch k {
+			case Structure:
+				sb.WriteString("| ")
+			case Error:
+				sb.WriteString("[ error ] ")
+			case Info:
+				sb.WriteString("[ info ] ")
+			case Debug:
+				sb.WriteString("[ debug ] ")
+			case Warn:
+				sb.WriteString("[ warning ] ")
+			case Deprecation:
+				sb.WriteString("[ deprecated ] ")
+			default:
+				panic(fmt.Sprintf("wrong node kind - %#v", k))
+			}
+			sb.WriteString(m)
+			sb.WriteRune('\n')
+			return
+		})
+	return sb.String()
 }
