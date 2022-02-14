@@ -2,7 +2,7 @@ package report_test
 
 import (
 	. "github.com/Contra-Culture/report"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
