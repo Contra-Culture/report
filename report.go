@@ -40,6 +40,7 @@ const (
 
 const allKinds = Structure | Error | Info | Debug | Warn | Deprecation
 
+// New() creates top level reporting node.
 func New(m string, injs ...interface{}) Node {
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
@@ -51,6 +52,8 @@ func New(m string, injs ...interface{}) Node {
 		msg:      m,
 	}
 }
+
+// Traverse() allows to go through all the report nodes starting from the current one.
 func (n *node) Traverse(fn func([]int, Kind, string) error) error {
 	return n.traverse([]int{}, fn)
 }
@@ -67,6 +70,8 @@ func (n *node) traverse(path []int, fn func([]int, Kind, string) error) (err err
 	}
 	return
 }
+
+// Error() allows to add error message node to report/log.
 func (n *node) Error(m string, injs ...interface{}) Node {
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
@@ -81,6 +86,8 @@ func (n *node) Error(m string, injs ...interface{}) Node {
 	}
 	return child
 }
+
+// Warn() allows to add warning message node to report/log.
 func (n *node) Warn(m string, injs ...interface{}) Node {
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
@@ -95,6 +102,8 @@ func (n *node) Warn(m string, injs ...interface{}) Node {
 	}
 	return child
 }
+
+// Deprecation() allows to add deprecation message node to report/log.
 func (n *node) Deprecation(m string, injs ...interface{}) Node {
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
@@ -109,6 +118,8 @@ func (n *node) Deprecation(m string, injs ...interface{}) Node {
 	}
 	return child
 }
+
+// Info() allows to add informational message node to report/log.
 func (n *node) Info(m string, injs ...interface{}) Node {
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
@@ -123,6 +134,8 @@ func (n *node) Info(m string, injs ...interface{}) Node {
 	}
 	return child
 }
+
+// Debug() allows to add debug message node to report/log.
 func (n *node) Debug(m string, injs ...interface{}) Node {
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
@@ -137,6 +150,9 @@ func (n *node) Debug(m string, injs ...interface{}) Node {
 	}
 	return child
 }
+
+// Structure() allows to add structure message node to report/log.
+// Structure nodes allows to label units or architecture levels.
 func (n *node) Structure(m string, injs ...interface{}) Node {
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
@@ -151,14 +167,20 @@ func (n *node) Structure(m string, injs ...interface{}) Node {
 	}
 	return child
 }
+
+// Allow() allows to manage what message node kinds are acceptable for the parent node which is a method receiver.
 func (n *node) Allow(kinds ...Kind) {
 	for _, k := range kinds {
 		n.allowMap |= k
 	}
 }
+
+// Message() returns current node message with its type.
 func (n *node) Message() string {
-	return ""
+	return fmt.Sprintf("%s %s", kindString(n.kind), n.msg)
 }
+
+// HasErrors() returns true if current node or one of its children has/is an error message.
 func (n *node) HasErrors() (hasErrors bool) {
 	hasErrors = false
 	n.Traverse(
@@ -171,6 +193,8 @@ func (n *node) HasErrors() (hasErrors bool) {
 		})
 	return
 }
+
+// HasWarns() returns true if current node or one of its children has/is a warning message.
 func (n *node) HasWarns() (hasWarns bool) {
 	hasWarns = false
 	n.Traverse(
@@ -183,6 +207,8 @@ func (n *node) HasWarns() (hasWarns bool) {
 		})
 	return
 }
+
+// HasDeprecations() returns true if current node or one of its children has/is a deprecation message.
 func (n *node) HasDeprecations() (hasDeprecations bool) {
 	hasDeprecations = false
 	n.Traverse(
@@ -195,6 +221,8 @@ func (n *node) HasDeprecations() (hasDeprecations bool) {
 		})
 	return
 }
+
+// ToString() returns string representation of the given node and all its children.
 func ToString(n Node) string {
 	var sb strings.Builder
 	n.Traverse(
@@ -202,25 +230,29 @@ func ToString(n Node) string {
 			for range path {
 				sb.WriteRune('\t')
 			}
-			switch k {
-			case Structure:
-				sb.WriteString("| ")
-			case Error:
-				sb.WriteString("[ error ] ")
-			case Info:
-				sb.WriteString("[ info ] ")
-			case Debug:
-				sb.WriteString("[ debug ] ")
-			case Warn:
-				sb.WriteString("[ warning ] ")
-			case Deprecation:
-				sb.WriteString("[ deprecated ] ")
-			default:
-				panic(fmt.Sprintf("wrong node kind - %#v", k))
-			}
+			sb.WriteString(kindString(k))
+			sb.WriteRune(' ')
 			sb.WriteString(m)
 			sb.WriteRune('\n')
 			return
 		})
 	return sb.String()
+}
+func kindString(k Kind) string {
+	switch k {
+	case Structure:
+		return "|"
+	case Error:
+		return "[ error ]"
+	case Info:
+		return "[ info ]"
+	case Debug:
+		return "[ debug ]"
+	case Warn:
+		return "[ warning ]"
+	case Deprecation:
+		return "[ deprecated ]"
+	default:
+		panic(fmt.Sprintf("wrong node kind - %#v", k)) // should not occure
+	}
 }
