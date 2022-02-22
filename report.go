@@ -2,6 +2,7 @@ package report
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -15,11 +16,15 @@ type (
 		msg      string
 		timer    Timer
 		time     time.Time
+		duration *time.Duration
 	}
-	standardTimer struct{}
-	Node          interface {
+	standardTimer struct {
+		beginning time.Time
+	}
+	Node interface {
+		Finalize()
 		Message() string
-		Traverse(fn func([]int, Kind, time.Time, string) error) error
+		Traverse(fn func([]int, Kind, time.Time, *time.Duration, string) error) error
 		Structure(string, ...interface{}) Node
 		Error(string, ...interface{}) Node
 		Info(string, ...interface{}) Node
@@ -33,6 +38,8 @@ type (
 	}
 	Timer interface {
 		Now() time.Time
+		Finalize() time.Duration
+		New() (Timer, time.Time)
 	}
 )
 
@@ -47,10 +54,16 @@ const (
 
 const allKinds = Structure | Error | Info | Debug | Warn | Deprecation
 
-func (t standardTimer) Now() time.Time {
+func (t *standardTimer) Now() time.Time {
 	return time.Now()
 }
-
+func (t *standardTimer) Finalize() time.Duration {
+	return time.Since(t.beginning)
+}
+func (t *standardTimer) New() (Timer, time.Time) {
+	n := t.Now()
+	return &standardTimer{beginning: n}, n
+}
 func NewWithTimer(t Timer, m string, injs ...interface{}) Node {
 	node := new(m, injs...)
 	node.timer = t
@@ -63,8 +76,8 @@ func New(m string, injs ...interface{}) Node {
 	return new(m, injs...)
 }
 func new(m string, injs ...interface{}) *node {
-	t := standardTimer{}
-	now := t.Now()
+	now := time.Now()
+	t := &standardTimer{beginning: now}
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
 	}
@@ -77,13 +90,17 @@ func new(m string, injs ...interface{}) *node {
 		time:     now,
 	}
 }
+func (n *node) Finalize() {
+	d := n.timer.Finalize()
+	n.duration = &d
+}
 
 // Traverse() allows to go through all the report nodes starting from the current one.
-func (n *node) Traverse(fn func([]int, Kind, time.Time, string) error) error {
+func (n *node) Traverse(fn func([]int, Kind, time.Time, *time.Duration, string) error) error {
 	return n.traverse([]int{}, fn)
 }
-func (n *node) traverse(path []int, fn func([]int, Kind, time.Time, string) error) (err error) {
-	err = fn(path, n.kind, n.time, n.msg)
+func (n *node) traverse(path []int, fn func([]int, Kind, time.Time, *time.Duration, string) error) (err error) {
+	err = fn(path, n.kind, n.time, n.duration, n.msg)
 	if err != nil {
 		return
 	}
@@ -98,7 +115,7 @@ func (n *node) traverse(path []int, fn func([]int, Kind, time.Time, string) erro
 
 // Error() allows to add error message node to report/log.
 func (n *node) Error(m string, injs ...interface{}) Node {
-	now := n.timer.Now()
+	t, now := n.timer.New()
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
 	}
@@ -106,7 +123,7 @@ func (n *node) Error(m string, injs ...interface{}) Node {
 		kind:     Error,
 		allowMap: Error,
 		msg:      m,
-		timer:    n.timer,
+		timer:    t,
 		time:     now,
 	}
 	if (n.allowMap & Error) > 0 {
@@ -117,7 +134,7 @@ func (n *node) Error(m string, injs ...interface{}) Node {
 
 // Warn() allows to add warning message node to report/log.
 func (n *node) Warn(m string, injs ...interface{}) Node {
-	now := n.timer.Now()
+	t, now := n.timer.New()
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
 	}
@@ -125,7 +142,7 @@ func (n *node) Warn(m string, injs ...interface{}) Node {
 		kind:     Warn,
 		allowMap: Warn,
 		msg:      m,
-		timer:    n.timer,
+		timer:    t,
 		time:     now,
 	}
 	if (n.allowMap & Warn) > 0 {
@@ -136,7 +153,7 @@ func (n *node) Warn(m string, injs ...interface{}) Node {
 
 // Deprecation() allows to add deprecation message node to report/log.
 func (n *node) Deprecation(m string, injs ...interface{}) Node {
-	now := n.timer.Now()
+	t, now := n.timer.New()
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
 	}
@@ -144,7 +161,7 @@ func (n *node) Deprecation(m string, injs ...interface{}) Node {
 		kind:     Deprecation,
 		allowMap: Deprecation,
 		msg:      m,
-		timer:    n.timer,
+		timer:    t,
 		time:     now,
 	}
 	if (n.allowMap & Deprecation) > 0 {
@@ -155,7 +172,7 @@ func (n *node) Deprecation(m string, injs ...interface{}) Node {
 
 // Info() allows to add informational message node to report/log.
 func (n *node) Info(m string, injs ...interface{}) Node {
-	now := n.timer.Now()
+	t, now := n.timer.New()
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
 	}
@@ -163,7 +180,7 @@ func (n *node) Info(m string, injs ...interface{}) Node {
 		kind:     Info,
 		allowMap: Info,
 		msg:      m,
-		timer:    n.timer,
+		timer:    t,
 		time:     now,
 	}
 	if (n.allowMap & Info) > 0 {
@@ -174,7 +191,7 @@ func (n *node) Info(m string, injs ...interface{}) Node {
 
 // Debug() allows to add debug message node to report/log.
 func (n *node) Debug(m string, injs ...interface{}) Node {
-	now := n.timer.Now()
+	t, now := n.timer.New()
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
 	}
@@ -182,7 +199,7 @@ func (n *node) Debug(m string, injs ...interface{}) Node {
 		kind:     Debug,
 		allowMap: Debug,
 		msg:      m,
-		timer:    n.timer,
+		timer:    t,
 		time:     now,
 	}
 	if (n.allowMap & Debug) > 0 {
@@ -194,7 +211,7 @@ func (n *node) Debug(m string, injs ...interface{}) Node {
 // Structure() allows to add structure message node to report/log.
 // Structure nodes allows to label units or architecture levels.
 func (n *node) Structure(m string, injs ...interface{}) Node {
-	now := n.timer.Now()
+	t, now := n.timer.New()
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
 	}
@@ -202,7 +219,7 @@ func (n *node) Structure(m string, injs ...interface{}) Node {
 		kind:     Structure,
 		allowMap: allKinds,
 		msg:      m,
-		timer:    n.timer,
+		timer:    t,
 		time:     now,
 	}
 	if (n.allowMap & Structure) > 0 {
@@ -220,6 +237,9 @@ func (n *node) Allow(kinds ...Kind) {
 
 // Message() returns current node message with its type.
 func (n *node) Message() string {
+	if n.duration != nil {
+		return fmt.Sprintf("[%s - %sns] %s %s", n.time.Format(time.RFC3339Nano), n.duration, kindString(n.kind), n.msg)
+	}
 	return fmt.Sprintf("[%s] %s %s", n.time.Format(time.RFC3339Nano), kindString(n.kind), n.msg)
 }
 
@@ -227,7 +247,7 @@ func (n *node) Message() string {
 func (n *node) HasErrors() (hasErrors bool) {
 	hasErrors = false
 	n.Traverse(
-		func(_ []int, k Kind, _ time.Time, _ string) (err error) {
+		func(_ []int, k Kind, _ time.Time, _ *time.Duration, _ string) (err error) {
 			if k == Error {
 				hasErrors = true
 				return
@@ -241,7 +261,7 @@ func (n *node) HasErrors() (hasErrors bool) {
 func (n *node) HasWarns() (hasWarns bool) {
 	hasWarns = false
 	n.Traverse(
-		func(_ []int, k Kind, _ time.Time, _ string) (err error) {
+		func(_ []int, k Kind, _ time.Time, _ *time.Duration, _ string) (err error) {
 			if k == Warn {
 				hasWarns = true
 				return
@@ -255,7 +275,7 @@ func (n *node) HasWarns() (hasWarns bool) {
 func (n *node) HasDeprecations() (hasDeprecations bool) {
 	hasDeprecations = false
 	n.Traverse(
-		func(_ []int, k Kind, _ time.Time, _ string) (err error) {
+		func(_ []int, k Kind, _ time.Time, _ *time.Duration, _ string) (err error) {
 			if k == Deprecation {
 				hasDeprecations = true
 				return
@@ -269,13 +289,19 @@ func (n *node) HasDeprecations() (hasDeprecations bool) {
 func ToString(n Node) string {
 	var sb strings.Builder
 	n.Traverse(
-		func(path []int, k Kind, t time.Time, m string) (err error) {
+		func(path []int, k Kind, t time.Time, d *time.Duration, m string) (err error) {
 			for range path {
 				sb.WriteRune('\t')
 			}
 			sb.WriteString(kindString(k))
 			sb.WriteRune('[')
 			sb.WriteString(t.Format(time.RFC3339Nano))
+			if d != nil {
+				sb.WriteRune(' ')
+				dur := int64(*d)
+				sb.WriteString(strconv.FormatInt(dur, 10))
+				sb.WriteString("ns")
+			}
 			sb.WriteRune(']')
 			sb.WriteRune(' ')
 			sb.WriteString(m)
