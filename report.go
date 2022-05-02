@@ -21,6 +21,10 @@ type (
 	standardTimer struct {
 		beginning time.Time
 	}
+	dumbTimer struct {
+		c         int64
+		beginning time.Time
+	}
 	Node interface {
 		Finalize()
 		Message() string
@@ -54,6 +58,25 @@ const (
 
 const allKinds = Structure | Error | Info | Debug | Warn | Deprecation
 
+func DumbTimer(now time.Time) *dumbTimer {
+	return &dumbTimer{beginning: now}
+}
+func (t *dumbTimer) Now() time.Time {
+	t.c++
+	d := time.Duration(t.c * 100)
+	return t.beginning.Add(d)
+}
+func (t *dumbTimer) Finalize() time.Duration {
+	t.c++
+	return time.Duration(t.c * 100)
+}
+func (t *dumbTimer) New() (Timer, time.Time) {
+	t.c++
+	now := t.beginning.Add(time.Duration(t.c * 100))
+	return &dumbTimer{
+		beginning: now,
+	}, now
+}
 func (t *standardTimer) Now() time.Time {
 	return time.Now()
 }
@@ -69,6 +92,12 @@ func NewWithTimer(t Timer, m string, injs ...interface{}) Node {
 	node.timer = t
 	node.time = t.Now()
 	return node
+}
+
+func ReportCreator(t Timer) func(string, ...interface{}) Node {
+	return func(m string, injs ...interface{}) Node {
+		return NewWithTimer(t, m, injs...)
+	}
 }
 
 // New() creates top level reporting node.

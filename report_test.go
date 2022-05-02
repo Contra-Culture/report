@@ -9,32 +9,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-type dumbTimer struct {
-	c         int64
-	beginning time.Time
-}
-
-func DumbTimer(now time.Time) *dumbTimer {
-	return &dumbTimer{beginning: now}
-}
-
-func (t *dumbTimer) Now() time.Time {
-	t.c++
-	d := time.Duration(t.c * 100)
-	return t.beginning.Add(d)
-}
-func (t *dumbTimer) Finalize() time.Duration {
-	t.c++
-	return time.Duration(t.c * 100)
-}
-func (t *dumbTimer) New() (Timer, time.Time) {
-	t.c++
-	now := t.beginning.Add(time.Duration(t.c * 100))
-	return &dumbTimer{
-		beginning: now,
-	}, now
-}
-
 var _ = Describe("report", func() {
 	Describe("test timer", func() {
 		Describe(".Now() and .Finalize()", func() {
