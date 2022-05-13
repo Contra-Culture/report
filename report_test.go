@@ -152,6 +152,29 @@ var _ = Describe("report", func() {
 			})
 		})
 	})
+	Describe("error generation", func() {
+		Describe(".ToError()", func() {
+			It("returns error or nil", func() {
+				now := time.Now()
+				r := NewWithTimer(DumbTimer(now), "test")
+				r.Info("root-info")
+				r.Error("root-error")
+				r1 := r.Structure("child1")
+				r1.Error("child1-error")
+				err1 := ToError(r1)
+				Expect(err1).NotTo(BeNil())
+				Expect(err1.Error()).To(Equal("multiple errors:\n\nchild1\n\t\nerror: child1-error\n"))
+				r2 := r.Structure("child2")
+				r2.Info("child2-info")
+				err2 := ToError(r2)
+				Expect(err2).NotTo(BeNil())
+				Expect(err2.Error()).To(Equal("multiple errors:\n\nchild2\n\t"))
+				err := ToError(r)
+				Expect(err).NotTo(BeNil())
+				Expect(err.Error()).To(Equal("multiple errors:\n\ntest\n\t\t\nerror: root-error\n\t\nchild1\n\t\t\nerror: child1-error\n\t\nchild2\n\t\t"))
+			})
+		})
+	})
 	Describe("predicates", func() {
 		Describe(".HasErrors()", func() {
 			Context("when has errors", func() {

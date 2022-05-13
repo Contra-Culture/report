@@ -1,6 +1,7 @@
 package report
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -338,6 +339,34 @@ func ToString(n Node) string {
 			return
 		})
 	return sb.String()
+}
+func ToError(n Node) error {
+	var sb strings.Builder
+	sb.WriteString("multiple errors:\n")
+	n.Traverse(
+		func(path []int, k Kind, t time.Time, d *time.Duration, m string) (err error) {
+			for range path {
+				sb.WriteRune('\t')
+			}
+			switch k {
+			case Error:
+				sb.WriteString("\nerror: ")
+				sb.WriteString(m)
+				sb.WriteRune('\n')
+			case Structure:
+				sb.WriteRune('\n')
+				sb.WriteString(m)
+				sb.WriteRune('\n')
+			default:
+				// do nothing
+			}
+			return
+		})
+	errMsg := sb.String()
+	if len(errMsg) == 0 {
+		return nil
+	}
+	return errors.New(errMsg)
 }
 func kindString(k Kind) string {
 	switch k {
