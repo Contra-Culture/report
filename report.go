@@ -19,7 +19,7 @@ type (
 		time     time.Time
 		duration *time.Duration
 	}
-	standardTimer struct {
+	StandardTimer struct {
 		beginning time.Time
 	}
 	dumbTimer struct {
@@ -78,15 +78,20 @@ func (t *dumbTimer) New() (Timer, time.Time) {
 		beginning: now,
 	}, now
 }
-func (t *standardTimer) Now() time.Time {
+func NewStandardTimer() Timer {
+	return &StandardTimer{
+		beginning: time.Now(),
+	}
+}
+func (t *StandardTimer) Now() time.Time {
 	return time.Now()
 }
-func (t *standardTimer) Finalize() time.Duration {
+func (t *StandardTimer) Finalize() time.Duration {
 	return time.Since(t.beginning)
 }
-func (t *standardTimer) New() (Timer, time.Time) {
+func (t *StandardTimer) New() (Timer, time.Time) {
 	n := t.Now()
-	return &standardTimer{beginning: n}, n
+	return &StandardTimer{beginning: n}, n
 }
 func NewWithTimer(t Timer, m string, injs ...interface{}) Node {
 	node := new(m, injs...)
@@ -107,7 +112,7 @@ func New(m string, injs ...interface{}) Node {
 }
 func new(m string, injs ...interface{}) *node {
 	now := time.Now()
-	t := &standardTimer{beginning: now}
+	t := &StandardTimer{beginning: now}
 	if len(injs) > 0 {
 		m = fmt.Sprintf(m, injs...)
 	}
