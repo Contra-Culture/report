@@ -320,9 +320,33 @@ func (n *node) HasDeprecations() (hasDeprecations bool) {
 	return
 }
 
+// ToString() options
+type noTimeOpt struct{}
+
+func NoTime() interface{} {
+	return noTimeOpt{}
+}
+
+type noDurationOpt struct{}
+
+func NoDuration() interface{} {
+	return noDurationOpt{}
+}
+
 // ToString() returns string representation of the given node and all its children.
-func ToString(n Node) string {
+func ToString(n Node, opts ...interface{}) (string, error) {
 	var sb strings.Builder
+	var noTime, noDuration bool
+	for _, opt := range opts {
+		switch opt.(type) {
+		case noTimeOpt:
+			noTime = true
+		case noDurationOpt:
+			noDuration = true
+		default:
+			return "", fmt.Errorf("wrong report#ToString() configuration, expected: NoTime(), NoDuration() or noting, got: \"%#v\"", opt)
+		}
+	}
 	n.Traverse(
 		func(path []int, k Kind, t time.Time, d *time.Duration, m string) (err error) {
 			for range path {
@@ -330,8 +354,10 @@ func ToString(n Node) string {
 			}
 			sb.WriteString(kindString(k))
 			sb.WriteRune('[')
-			sb.WriteString(t.Format(time.RFC3339Nano))
-			if d != nil {
+			if !noTime {
+				sb.WriteString(t.Format(time.RFC3339Nano))
+			}
+			if !noDuration && d != nil {
 				sb.WriteRune(' ')
 				dur := int64(*d)
 				sb.WriteString(strconv.FormatInt(dur, 10))
@@ -343,7 +369,7 @@ func ToString(n Node) string {
 			sb.WriteRune('\n')
 			return
 		})
-	return sb.String()
+	return sb.String(), nil
 }
 func ToError(n Node) error {
 	var sb strings.Builder
