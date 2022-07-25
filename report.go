@@ -353,17 +353,19 @@ func ToString(n Node, opts ...interface{}) (string, error) {
 				sb.WriteRune('\t')
 			}
 			sb.WriteString(kindString(k))
-			sb.WriteRune('[')
-			if !noTime {
-				sb.WriteString(t.Format(time.RFC3339Nano))
+			if !(noTime && noDuration) {
+				sb.WriteRune('[')
+				if !noTime {
+					sb.WriteString(t.Format(time.RFC3339Nano))
+				}
+				if !noDuration && d != nil {
+					sb.WriteRune(' ')
+					dur := int64(*d)
+					sb.WriteString(strconv.FormatInt(dur, 10))
+					sb.WriteString("ns")
+				}
+				sb.WriteRune(']')
 			}
-			if !noDuration && d != nil {
-				sb.WriteRune(' ')
-				dur := int64(*d)
-				sb.WriteString(strconv.FormatInt(dur, 10))
-				sb.WriteString("ns")
-			}
-			sb.WriteRune(']')
 			sb.WriteRune(' ')
 			sb.WriteString(m)
 			sb.WriteRune('\n')
