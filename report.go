@@ -49,6 +49,11 @@ var mtStrings = map[MessageKind]string{
 	TRACE:  "TRACE",
 }
 
+// New() - creates top level reporter.
+// You may want to create reporters for HTTP request handlers and then create sub-repporters to debug,
+// trace or just to gather structured logs from nested contexts, like HTML rendering, DB queries, 3rd-party API calls.
+//
+// name string - name of the root context. For example, for HTTP handlers it could be ReqestID - randomly generated string identifier.
 func New(name string) *Reporter {
 	return &Reporter{
 		createdAt: time.Now(),
@@ -57,11 +62,21 @@ func New(name string) *Reporter {
 		reporters: []*Reporter{},
 	}
 }
+
+// *Report.Sub() creates sub (nested) reporter which you can put into some child context.
+//
+// + name string - name of the child context which will use sub(nested) report.
 func (r *Reporter) Sub(name string) *Reporter {
 	sub := New(name)
 	r.reporters = append(r.reporters, sub)
 	return sub
 }
+
+// *Reporter.Msg() Writes messages within current report.
+//
+// + kind MessageKind - enum kind of message (Unix Syslog + Trace)
+// + msg - text message
+// + payload map[string]interface{} - interface{} could be string, int, float64 or bool.
 func (r *Reporter) Msg(kind MessageKind, msg string, payload map[string]interface{}) {
 	r.messages = append(
 		r.messages,
@@ -72,6 +87,8 @@ func (r *Reporter) Msg(kind MessageKind, msg string, payload map[string]interfac
 			payload:   payload,
 		})
 }
+
+// *Reporter.JSON() generates JSON report out of current reporter and all its children, grandchildren and etc.
 func (r *Reporter) JSON() string {
 	var sb strings.Builder
 	sb.WriteString("{\"t\":\"")
